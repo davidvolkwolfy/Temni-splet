@@ -1,1 +1,344 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Preverjanje razkritij | SRC interno</title>
+    <style>
+        :root { --brand: #0096db; --brand-dark: #007bbd; }
+        * { box-sizing: border-box; }
+        body { background: #eef1f4; font-family: 'Segoe UI', sans-serif; margin: 0; padding: 10px; color: #333; }
+        .hidden { display: none !important; }
 
+        /* Prijava */
+        .login-card { max-width: 380px; margin: 90px auto; background: #fff; padding: 32px;
+            border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,.12); }
+        .login-card h1 { font-size: 20px; margin: 0 0 4px; }
+        .login-card .sub { color: #888; font-size: 13px; margin-bottom: 22px; }
+
+        label { display: block; font-weight: bold; font-size: 14px; margin: 14px 0 6px; }
+        input, textarea { width: 100%; padding: 11px; border: 1px solid #ccc; border-radius: 8px; font-size: 15px; }
+        textarea { min-height: 140px; font-family: monospace; font-size: 13px; resize: vertical; }
+        input[type="file"] { padding: 8px 0; border: none; font-size: 14px; }
+
+        button { border: none; border-radius: 8px; background: var(--brand); color: #fff;
+            font-weight: bold; cursor: pointer; }
+        button:hover { background: var(--brand-dark); }
+        button.secondary { background: #6c757d; }
+        button.secondary:hover { background: #5a6268; }
+        button.link { background: none; color: var(--brand); padding: 0 4px; font-size: 14px; }
+        button.link:hover { background: none; text-decoration: underline; }
+        .login-card button[type=submit] { width: 100%; margin-top: 20px; padding: 12px; font-size: 15px; }
+
+        .banner { font-size: 12px; color: #8a6d00; background: #fff3cd; border: 1px solid #ffe69c;
+            border-radius: 8px; padding: 8px 10px; margin-top: 18px; text-align: center; }
+        .msg-error { background: #fdecea; color: #b3261e; border: 1px solid #f5c6cb;
+            padding: 10px; border-radius: 8px; font-size: 14px; margin-top: 14px; }
+
+        /* App */
+        .topbar { max-width: 900px; margin: 0 auto 12px; display: flex; justify-content: space-between;
+            align-items: center; font-size: 13px; padding: 8px 4px; }
+        .topbar .user { font-weight: bold; }
+        .topbar button.link { font-size: 13px; }
+
+        .internal-banner { max-width: 900px; margin: 0 auto 12px; background: #fff3cd; border: 1px solid #ffe69c;
+            color: #8a6d00; border-radius: 8px; padding: 8px 12px; font-size: 13px; text-align: center; }
+
+        .container { max-width: 900px; margin: 0 auto; background: #fff; padding: 26px;
+            border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,.1); }
+        .container h1 { font-size: 22px; margin: 0 0 6px; }
+        .desc { color: #666; font-size: 14px; margin-bottom: 18px; }
+
+        /* Zavihki */
+        .tabs { display: flex; gap: 6px; border-bottom: 2px solid #e0e4e8; margin-bottom: 20px; }
+        .tab { padding: 10px 18px; cursor: pointer; font-weight: bold; font-size: 14px; color: #777;
+            border: none; background: none; border-bottom: 3px solid transparent; margin-bottom: -2px; }
+        .tab:hover { background: none; color: var(--brand); }
+        .tab.active { color: var(--brand); border-bottom-color: var(--brand); }
+
+        .searchrow { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+        .searchrow .grow { flex: 1; min-width: 220px; }
+        .searchrow .limit { width: 120px; }
+        .searchrow button.go { padding: 11px 22px; font-size: 15px; white-space: nowrap; }
+        .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 14px; }
+        .hint, .note { font-size: 12px; color: #999; margin-top: 10px; }
+
+        .spinner { border: 4px solid #f0f0f0; border-top: 4px solid var(--brand); border-radius: 50%;
+            width: 34px; height: 34px; animation: spin 1s linear infinite; margin: 24px auto; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .summary { margin-top: 22px; font-size: 14px; }
+        .summary .export { margin-left: 10px; color: #666; }
+        .noresults { color: #188038; font-weight: bold; margin-top: 22px; }
+
+        .db { border: 1px solid #e0e4e8; border-radius: 10px; margin-top: 18px; overflow: hidden; }
+        .db h3 { margin: 0; padding: 12px 16px; background: #f4f6f8; border-bottom: 2px solid var(--brand);
+            font-family: monospace; font-size: 15px; color: #0e1722; }
+        .db .infoleak { padding: 10px 16px; margin: 0; font-size: 13px; color: #666;
+            background: #fafbfc; border-bottom: 1px solid #eee; }
+        .record { padding: 12px 16px; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
+        .record:last-child { border-bottom: none; }
+        .field { display: flex; gap: 8px; padding: 2px 0; }
+        .field .col { color: #666; min-width: 140px; font-weight: bold; }
+        .field .val { color: #0e1722; font-family: monospace; word-break: break-all; }
+    </style>
+</head>
+<body>
+
+    <!-- PRIJAVA -->
+    <div id="loginView" class="hidden">
+        <div class="login-card">
+            <h1>🔐 Interno orodje SRC</h1>
+            <p class="sub">Preverjanje razkritij — samo za pooblaščeno uporabo</p>
+            <form id="loginForm" autocomplete="off">
+                <label for="username">Uporabniško ime</label>
+                <input type="text" id="username" required autofocus>
+                <label for="password">Geslo</label>
+                <input type="password" id="password" required>
+                <div id="loginError" class="msg-error hidden"></div>
+                <button type="submit">Prijava</button>
+            </form>
+            <div class="banner">Dostop in poizvedbe se beležijo.</div>
+        </div>
+    </div>
+
+    <!-- APLIKACIJA -->
+    <div id="appView" class="hidden">
+        <div class="topbar">
+            <span>Prijavljen: <span class="user" id="currentUser"></span></span>
+            <button class="link" id="logoutBtn">Odjava</button>
+        </div>
+        <div class="internal-banner">
+            ⚠️ Interno orodje — samo za pooblaščeno uporabo. Žive poizvedbe se beležijo.
+        </div>
+
+        <div class="container">
+            <h1>🔎 Preverjanje razkritij</h1>
+
+            <div class="tabs">
+                <button class="tab active" id="tabLive">Živa poizvedba</button>
+                <button class="tab" id="tabImport">Uvoz rezultatov</button>
+            </div>
+
+            <!-- ZAVIHEK: Živa poizvedba -->
+            <div id="panelLive">
+                <p class="desc">Poizvedba proti bazam razkritij (LeakOsint). E-naslov, uporabniško ime, telefon ali drug pojem.</p>
+                <form id="searchForm">
+                    <div class="searchrow">
+                        <div class="grow">
+                            <label for="query">Iskalni pojem</label>
+                            <input type="text" id="query" placeholder="npr. ime@primer.si" required>
+                        </div>
+                        <div>
+                            <label for="limit">Limit</label>
+                            <input type="number" id="limit" class="limit" min="100" max="10000" step="100" value="100">
+                        </div>
+                        <div><button type="submit" class="go">🔎 Preveri</button></div>
+                    </div>
+                    <p class="hint">Limit 100–10000. Poizvedbe in izvoženi podatki so namenjeni izključno pooblaščenim preiskavam.</p>
+                </form>
+                <div id="spinner" class="spinner hidden"></div>
+            </div>
+
+            <!-- ZAVIHEK: Uvoz rezultatov -->
+            <div id="panelImport" class="hidden">
+                <p class="desc">Naložite ali prilepite JSON odgovor (npr. iz drugega orodja) in ga prikažite. Uvoz teče lokalno v brskalniku in se ne beleži.</p>
+                <label for="file">Naloži JSON datoteko</label>
+                <input type="file" id="file" accept=".json,application/json">
+                <label for="json">…ali prilepi JSON</label>
+                <textarea id="json" placeholder='{"List": { "BreachDB (2021)": { "InfoLeak": "...", "Data": [ {"Email": "..."} ] } } }'></textarea>
+                <div class="row">
+                    <button id="importBtn">Prikaži</button>
+                    <button id="clearBtn" class="secondary">Počisti</button>
+                </div>
+            </div>
+
+            <div id="error" class="msg-error hidden"></div>
+            <div id="results"></div>
+        </div>
+    </div>
+
+    <script>
+    (function () {
+        "use strict";
+        let current = null, currentQuery = "";
+
+        function $(id) { return document.getElementById(id); }
+        function show(el) { el.classList.remove("hidden"); }
+        function hide(el) { el.classList.add("hidden"); }
+        function showError(msg) { const e = $("error"); e.textContent = "❌ " + msg; show(e); }
+
+        async function api(path, opts) {
+            const res = await fetch(path, Object.assign({
+                headers: { "Content-Type": "application/json" }, credentials: "same-origin",
+            }, opts));
+            let data = {}; try { data = await res.json(); } catch (e) {}
+            return { ok: res.ok, status: res.status, data };
+        }
+
+        // --- Prijava ---
+        async function init() {
+            const r = await api("/api/me", { method: "GET" });
+            if (r.ok) enterApp(r.data.user, r.data.default_limit);
+            else show($("loginView"));
+        }
+        function enterApp(user, defaultLimit) {
+            hide($("loginView"));
+            $("currentUser").textContent = user;
+            if (defaultLimit) $("limit").value = defaultLimit;
+            show($("appView"));
+        }
+        $("loginForm").addEventListener("submit", async function (e) {
+            e.preventDefault(); hide($("loginError"));
+            const r = await api("/api/login", { method: "POST",
+                body: JSON.stringify({ username: $("username").value, password: $("password").value }) });
+            if (r.ok) enterApp(r.data.user, r.data.default_limit);
+            else { $("loginError").textContent = "❌ " + (r.data.error || "Napaka."); show($("loginError")); }
+        });
+        $("logoutBtn").addEventListener("click", async function () {
+            await api("/api/logout", { method: "POST" }); location.reload();
+        });
+
+        // --- Zavihki ---
+        function switchTab(which) {
+            const live = which === "live";
+            $("tabLive").classList.toggle("active", live);
+            $("tabImport").classList.toggle("active", !live);
+            $("panelLive").classList.toggle("hidden", !live);
+            $("panelImport").classList.toggle("hidden", live);
+            $("results").innerHTML = ""; hide($("error")); current = null;
+        }
+        $("tabLive").addEventListener("click", function () { switchTab("live"); });
+        $("tabImport").addEventListener("click", function () { switchTab("import"); });
+
+        // --- Živa poizvedba ---
+        $("searchForm").addEventListener("submit", async function (e) {
+            e.preventDefault(); hide($("error")); $("results").innerHTML = ""; current = null;
+            show($("spinner"));
+            const r = await api("/api/search", { method: "POST",
+                body: JSON.stringify({ query: $("query").value, limit: parseInt($("limit").value, 10) || 100 }) });
+            hide($("spinner"));
+            if (r.status === 401) { location.reload(); return; }
+            if (!r.ok) { showError(r.data.error || "Napaka."); return; }
+            currentQuery = r.data.query;
+            renderResults(r.data.results, true);
+        });
+
+        // --- Uvoz rezultatov ---
+        $("file").addEventListener("change", function () {
+            const f = this.files[0]; if (!f) return;
+            const reader = new FileReader();
+            reader.onload = function () { $("json").value = reader.result; doImport(); };
+            reader.readAsText(f);
+        });
+        $("importBtn").addEventListener("click", doImport);
+        $("clearBtn").addEventListener("click", function () {
+            $("json").value = ""; $("file").value = ""; $("results").innerHTML = "";
+            hide($("error")); current = null;
+        });
+        function extractResults(data) {
+            if (data && typeof data === "object" && data.List && typeof data.List === "object") return data.List;
+            return data;
+        }
+        function doImport() {
+            hide($("error")); $("results").innerHTML = ""; current = null;
+            const raw = $("json").value.trim();
+            if (!raw) { showError("Ni podatkov — naložite ali prilepite JSON."); return; }
+            let data;
+            try { data = JSON.parse(raw); } catch (e) { showError("Neveljaven JSON: " + e.message); return; }
+            const results = extractResults(data);
+            if (!results || typeof results !== "object") { showError("Nepričakovana struktura JSON."); return; }
+            currentQuery = "uvoz";
+            renderResults(results, false);
+        }
+
+        // --- Skupni prikaz + izvoz ---
+        function isEmpty(results) {
+            const keys = Object.keys(results || {});
+            return keys.length === 0 || (keys.length === 1 && keys[0] === "No results found");
+        }
+        function renderResults(results, showJsonExport) {
+            current = results;
+            const wrap = $("results"); wrap.innerHTML = "";
+            if (isEmpty(results)) {
+                const p = document.createElement("p"); p.className = "noresults";
+                p.textContent = "✅ Ni zadetkov."; wrap.appendChild(p); return;
+            }
+            const summary = document.createElement("div"); summary.className = "summary";
+            const dbCount = Object.keys(results).filter(k => k !== "No results found").length;
+            summary.appendChild(document.createTextNode("Najdeno v "));
+            const strong = document.createElement("strong"); strong.textContent = dbCount; summary.appendChild(strong);
+            summary.appendChild(document.createTextNode(" bazah."));
+            const exp = document.createElement("span"); exp.className = "export";
+            exp.appendChild(document.createTextNode("Izvoz: "));
+            const csvBtn = document.createElement("button"); csvBtn.className = "link"; csvBtn.textContent = "CSV";
+            csvBtn.addEventListener("click", exportCSV); exp.appendChild(csvBtn);
+            if (showJsonExport) {
+                exp.appendChild(document.createTextNode(" · "));
+                const jsonBtn = document.createElement("button"); jsonBtn.className = "link"; jsonBtn.textContent = "JSON";
+                jsonBtn.addEventListener("click", exportJSON); exp.appendChild(jsonBtn);
+            }
+            summary.appendChild(exp); wrap.appendChild(summary);
+
+            Object.keys(results).forEach(function (dbName) {
+                const db = results[dbName] || {};
+                const box = document.createElement("div"); box.className = "db";
+                const h = document.createElement("h3"); h.textContent = dbName; box.appendChild(h);
+                if (db.InfoLeak) {
+                    const info = document.createElement("p"); info.className = "infoleak";
+                    info.textContent = db.InfoLeak; box.appendChild(info);
+                }
+                if (dbName !== "No results found" && Array.isArray(db.Data)) {
+                    db.Data.forEach(function (record) {
+                        const rec = document.createElement("div"); rec.className = "record";
+                        Object.keys(record).forEach(function (col) {
+                            const f = document.createElement("div"); f.className = "field";
+                            const c = document.createElement("span"); c.className = "col"; c.textContent = col;
+                            const v = document.createElement("span"); v.className = "val"; v.textContent = record[col];
+                            f.appendChild(c); f.appendChild(v); rec.appendChild(f);
+                        });
+                        box.appendChild(rec);
+                    });
+                }
+                wrap.appendChild(box);
+            });
+        }
+
+        function download(filename, content, mime) {
+            const blob = new Blob([content], { type: mime });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a"); a.href = url; a.download = filename;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+        }
+        function safeName() { return (currentQuery || "porocilo").replace(/[^a-zA-Z0-9]+/g, "_").slice(0, 40); }
+        function exportJSON() {
+            if (!current) return;
+            download("SRC_porocilo_" + safeName() + ".json", JSON.stringify(current, null, 2), "application/json");
+        }
+        function csvField(s) {
+            s = String(s == null ? "" : s);
+            if (/[",\n]/.test(s)) s = '"' + s.replace(/"/g, '""') + '"';
+            return s;
+        }
+        function exportCSV() {
+            if (!current) return;
+            const rows = ["baza,vir_opis,zapis,polje,vrednost"];
+            Object.keys(current).forEach(function (dbName) {
+                if (dbName === "No results found") return;
+                const db = current[dbName] || {};
+                if (!Array.isArray(db.Data)) return;
+                db.Data.forEach(function (record, i) {
+                    Object.keys(record).forEach(function (col) {
+                        rows.push([csvField(dbName), csvField(db.InfoLeak || ""), i + 1,
+                                   csvField(col), csvField(record[col])].join(","));
+                    });
+                });
+            });
+            download("SRC_porocilo_" + safeName() + ".csv", "﻿" + rows.join("\r\n"), "text/csv");
+        }
+
+        init();
+    })();
+    </script>
+</body>
+</html>
